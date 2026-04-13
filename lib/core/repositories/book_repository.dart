@@ -1,66 +1,80 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ddbook/models/book.dart';
-import 'package:ddbook/core/services/storage_service.dart';
+import 'package:ddbook/core/services/api_service.dart';
 
-final bookRepositoryProvider = Provider((ref) => BookRepository(ref.watch(storageServiceProvider)));
+final bookRepositoryProvider = Provider((ref) => BookRepository(ref.watch(apiServiceProvider)));
 
 class BookRepository {
-  final StorageService _storageService;
-  List<Book> _books = [];
-  bool _isLoaded = false;
+  final ApiService _apiService;
 
-  BookRepository(this._storageService);
-
-  Future<void> _ensureLoaded() async {
-    if (!_isLoaded) {
-      _books = await _storageService.loadBooks();
-      _isLoaded = true;
-    }
-  }
+  BookRepository(this._apiService);
 
   Future<List<Book>> getAllBooks() async {
-    await _ensureLoaded();
-    return List.unmodifiable(_books);
+    final response = await _apiService.get('/v1/books');
+    final items = (response['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(_fromApi)
+        .toList();
+    return List.unmodifiable(items);
   }
 
   Future<void> addBook(Book book) async {
-    await _ensureLoaded();
-    // 使用 ID 检查是否已存在（而不是 ISBN，因为不同册可能共享相同 ISBN）
-    final index = _books.indexWhere((b) => b.id == book.id);
-    if (index != -1) {
-      _books[index] = book; // 更新
-    } else {
-      _books.add(book);
-    }
-    await _storageService.saveBooks(_books);
+    await _apiService.post(
+      '/v1/books',
+      body: {
+        'isbn': book.isbn,
+        'title': book.title,
+        'author': book.author,
+        'coverUrl': book.coverUrl,
+        'category': book.category,
+        'seriesName': book.seriesName,
+        'volumeNumber': book.volumeNumber,
+        'edition': book.edition,
+        'audioUrl': book.audioPath,
+        'tags': book.tags,
+      },
+    );
   }
 
   Future<void> deleteBook(String id) async {
-    await _ensureLoaded();
-    _books.removeWhere((b) => b.id == id);
-    await _storageService.saveBooks(_books);
+    await _apiService.delete('/v1/books/$id');
   }
-  
+
   Future<Book?> getBookByIsbn(String isbn) async {
-    await _ensureLoaded();
-    try {
-      return _books.firstWhere((b) => b.isbn == isbn && isbn.isNotEmpty);
-    } catch (e) {
-      return null;
-    }
+    final books = await getBooksByIsbn(isbn);
+    if (books.isEmpty) return null;
+    return books.first;
   }
 
-  // 获取所有具有相同 ISBN 的书籍（处理同ISBN不同书名的情况）
   Future<List<Book>> getBooksByIsbn(String isbn) async {
-    await _ensureLoaded();
     if (isbn.isEmpty) return [];
-    return _books.where((b) => b.isbn == isbn).toList();
+    final response = await _apiService.get('/v1/books', queryParameters: {'isbn': isbn});
+    return (response['items'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(_fromApi)
+        .toList();
   }
 
-  // 导出所有数据的文件路径
   Future<String> exportDataFilePath() async {
-    // 确保数据已保存到本地
-    await _ensureLoaded();
-    return await _storageService.getExportFilePath();
+    return _apiService.baseUrl;
+  }
+
+  Book _fromApi(Map<String, dynamic> json) {
+    return Book(
+      id: (json['id'] ?? '').toString(),
+      isbn: (json['isbn'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      author: json['author']?.toString(),
+      coverUrl: json['coverUrl']?.toString(),
+      category: json['category']?.toString(),
+      seriesName: json['seriesName']?.toString(),
+      volumeNumber: json['volumeNumber'] is int ? json['volumeNumber'] as int : null,
+      edition: json['edition']?.toString(),
+      audioPath: json['audioUrl']?.toString(),
+      tags: (json['tags'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      readCount: json['readCount'] is int ? json['readCount'] as int : 0,
+      lastReadAt: json['lastReadAt'] != null ? DateTime.tryParse(json['lastReadAt'].toString()) : null,
+      createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()) ?? DateTime.now(),
+    );
   }
 }

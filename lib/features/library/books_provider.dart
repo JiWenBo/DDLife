@@ -52,14 +52,6 @@ class BooksNotifier extends StateNotifier<AsyncValue<List<Book>>> {
   // 记录阅读
   Future<void> recordReading(Book book) async {
     try {
-      // 1. 更新书籍本身的统计信息（用于快速展示）
-      final updatedBook = book.copyWith(
-        readCount: book.readCount + 1,
-        lastReadAt: DateTime.now(),
-      );
-      await _bookRepository.addBook(updatedBook);
-      
-      // 2. 添加详细的阅读记录（用于热力图和历史回溯）
       final record = ReadingRecord(
         id: '${DateTime.now().millisecondsSinceEpoch}_${book.id}',
         bookId: book.id,

@@ -108,26 +108,51 @@ npm run dev
 
 ## 6. 部署（服务器）
 
-推荐用 PM2 做进程守护（保活/重启/开机自启），下面给出从 0 到上线的完整流程。
+考虑到部分服务器环境中 `npm i -g pm2` 可能出现卡死/安装失败，这里提供 **Docker 生产部署** 作为默认方案。
 
 ### 6.1 服务器首次安装（一次性）
 
-1) 安装 Node.js（推荐用 nvm 管理版本）
-
-2) 全局安装 PM2
+1) 安装 Docker / Docker Compose 插件（Ubuntu）
 
 ```bash
-npm i -g pm2
+apt update
+apt install -y ca-certificates curl gnupg lsb-release
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+docker version
+docker compose version
+```
+
+2) 拉取代码并进入服务目录
+
+```bash
+cd /srv
+git clone <your-repo-url> ddbook
+cd /srv/ddbook/ddServer
 ```
 
 3) 准备生产环境变量文件
 
 - 在服务器的 `ddServer` 目录创建 `.env.production`（不要提交到 Git）
 
-4) 首次启动并设置开机自启（按提示执行）
+示例：
 
 ```bash
-pm2 startup
+cat > .env.production << 'EOF'
+PORT=3000
+OPENAI_API_KEY=
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=你的prod账号
+DB_PASSWORD=你的prod密码
+DB_NAME=dd-prod
+EOF
 ```
 
 ### 6.2 每次发布（dd-prod）
@@ -135,30 +160,43 @@ pm2 startup
 在服务器上进入项目目录执行：
 
 ```bash
-cd /path/to/ddServer
+cd /srv/ddbook/ddServer
 git pull
-npm ci
-npm run prisma:generate
-npm run db:migrate:deploy:prod
-npm run build
-pm2 restart ddserver || pm2 start dist/server.js --name ddserver
-pm2 save
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml run --rm ddserver npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
 ```
 
 说明：
 
-- `npm ci` 会严格按 lockfile 安装依赖，比 `npm install` 更适合生产环境。
-- `db:migrate:deploy:prod` 会把已提交的迁移应用到生产库 dd-prod（不会生成新迁移）。
-- 首次启动时没有 `ddserver` 进程，所以用 `restart || start` 兼容首次与后续发布。
+- `docker compose ... build` 会构建镜像（含 TypeScript 构建与 Prisma Client 生成）。
+- `run --rm ... prisma migrate deploy` 会把已提交迁移应用到生产库（不会生成新迁移）。
+- `up -d` 会启动或滚动更新 `ddserver` 容器。
 
-### 6.3 常用 PM2 命令
+### 6.3 常用 Docker 运维命令
 
 ```bash
-pm2 ls
-pm2 logs ddserver
-pm2 restart ddserver
-pm2 stop ddserver
-pm2 delete ddserver
+cd /srv/ddbook/ddServer
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f ddserver
+docker compose -f docker-compose.prod.yml restart ddserver
+docker compose -f docker-compose.prod.yml down
+docker image ls | grep ddserver
+```
+
+### 6.4 首次上线最小流程（可直接照抄）
+
+```bash
+cd /srv/ddbook/ddServer
+cp .env.example .env.production
+# 编辑 .env.production（改成生产 DB）
+vim .env.production
+
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml run --rm ddserver npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml up -d
+curl http://127.0.0.1:3000/health
 ```
 
 ## 7. 发布到生产（结构变更 / 数据变更）
@@ -199,12 +237,10 @@ npm run lint
 6) 在服务器发布（dd-prod）
 
 ```bash
-cd /path/to/ddServer
-npm install
-npm run prisma:generate
-npm run db:migrate:deploy:prod
-npm run build
-npm start
+cd /srv/ddbook/ddServer
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml run --rm ddserver npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 ### 7.2 数据变更（推荐放进迁移里一起发布）

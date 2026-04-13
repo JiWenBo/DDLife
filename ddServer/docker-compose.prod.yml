@@ -1,0 +1,14 @@
+services:
+  ddserver:
+    container_name: ddserver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ddserver:latest
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"

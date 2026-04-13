@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../models/book.dart';
-import '../library/books_provider.dart';
+import '../../models/reading_record.dart';
 import 'stats_providers.dart';
 
 class StatsScreen extends ConsumerWidget {
@@ -13,7 +12,6 @@ class StatsScreen extends ConsumerWidget {
     final selectedDate = ref.watch(selectedDateProvider);
     final heatmapAsync = ref.watch(heatmapDataProvider);
     final dailyRecordsAsync = ref.watch(dailyRecordsProvider);
-    final allBooksAsync = ref.watch(booksProvider);
     final statsSummary = ref.watch(statsSummaryProvider);
 
     return Scaffold(
@@ -30,7 +28,11 @@ class StatsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 0. 统计概览
-            _buildSummaryCards(statsSummary),
+            statsSummary.when(
+              data: _buildSummaryCards,
+              loading: () => _buildSummaryCards({'total': 0, 'thisMonth': 0, 'streak': 0}),
+              error: (_, __) => _buildSummaryCards({'total': 0, 'thisMonth': 0, 'streak': 0}),
+            ),
             const SizedBox(height: 24),
 
             // 1. 热力图区域
@@ -82,28 +84,14 @@ class StatsScreen extends ConsumerWidget {
                 if (records.isEmpty) {
                   return _buildEmptyState();
                 }
-                
-                // 获取所有书籍用于查找书名
-                final allBooks = allBooksAsync.value ?? [];
-                
+
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: records.length,
                   itemBuilder: (context, index) {
                     final record = records[index];
-                    // 查找对应的书籍
-                    final book = allBooks.firstWhere(
-                      (b) => b.id == record.bookId,
-                      orElse: () => Book(
-                        id: 'unknown',
-                        isbn: '',
-                        title: '未知书籍',
-                        createdAt: DateTime.now(),
-                      ),
-                    );
-                    
-                    return _buildRecordItem(context, record, book);
+                    return _buildRecordItem(context, record);
                   },
                 );
               },
@@ -274,7 +262,7 @@ class StatsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecordItem(BuildContext context, dynamic record, Book book) {
+  Widget _buildRecordItem(BuildContext context, ReadingRecord record) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -317,7 +305,7 @@ class StatsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  book.title,
+                  record.bookTitle ?? '未知书籍',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
