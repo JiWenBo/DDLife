@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @db.VarChar(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  books          Book[]
+  readingRecords ReadingRecord[]
+
+  @@map("users")
+}
+
+model Book {
+  id           String    @id @db.VarChar(36)
+  userId       String    @map("user_id") @db.VarChar(36)
+  isbn         String    @default("") @db.VarChar(32)
+  title        String    @db.VarChar(255)
+  author       String?   @db.VarChar(255)
+  coverUrl     String?   @map("cover_url") @db.VarChar(500)
+  category     String?   @db.VarChar(64)
+  seriesName   String?   @map("series_name") @db.VarChar(255)
+  volumeNumber Int?      @map("volume_number")
+  edition      String?   @db.VarChar(64)
+  audioUrl     String?   @map("audio_url") @db.VarChar(500)
+  tags         Json? 
+  readCount    Int       @default(0) @map("read_count")
+  lastReadAt   DateTime? @map("last_read_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  readingRecords ReadingRecord[]
+
+  @@index([userId], map: "idx_books_user")
+  @@index([isbn], map: "idx_books_isbn")
+  @@index([title], map: "idx_books_title")
+  @@index([updatedAt], map: "idx_books_updated")
+  @@index([deletedAt], map: "idx_books_deleted")
+  @@map("books")
+}
+
+model ReadingRecord {
+  id              String    @id @db.VarChar(36)
+  userId          String    @map("user_id") @db.VarChar(36)
+  bookId          String    @map("book_id") @db.VarChar(36)
+  readAt          DateTime  @map("read_at")
+  durationSeconds Int?      @map("duration_seconds")
+  note            String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId], map: "idx_records_user")
+  @@index([bookId], map: "idx_records_book")
+  @@index([readAt], map: "idx_records_read_at")
+  @@index([deletedAt], map: "idx_records_deleted")
+  @@map("reading_records")
+}

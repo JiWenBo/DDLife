@@ -1,0 +1,43 @@
+{
+  "name": "ddserver",
+  "version": "1.0.0",
+  "description": "DDBook backend service",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "NODE_ENV=development tsx watch src/server.ts",
+    "db:check:dev": "NODE_ENV=development tsx src/scripts/dbConnectionCheck.ts",
+    "db:check:prod": "NODE_ENV=production tsx src/scripts/dbConnectionCheck.ts",
+    "prisma:generate": "npx prisma generate",
+    "db:push:dev": "DATABASE_URL=\"$(NODE_ENV=development node scripts/print-database-url.cjs)\" npx prisma db push",
+    "db:migrate:dev": "DATABASE_URL=\"$(NODE_ENV=development node scripts/print-database-url.cjs)\" npx prisma migrate dev",
+    "db:migrate:deploy:prod": "DATABASE_URL=\"$(NODE_ENV=production node scripts/print-database-url.cjs)\" npx prisma migrate deploy",
+    "db:sync:mobile:dev": "DATABASE_URL=\"$(NODE_ENV=development node scripts/print-database-url.cjs)\" NODE_ENV=development tsx src/scripts/syncMobileLocalData.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "NODE_ENV=production node dist/server.js",
+    "start:staging": "NODE_ENV=staging node dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^17.4.1",
+    "fastify": "^5.8.4",
+    "mysql2": "^3.21.1",
+    "openai": "^6.34.0",
+    "prisma": "^6.19.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.5.2",
+    "eslint": "^10.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
+  }
+}
