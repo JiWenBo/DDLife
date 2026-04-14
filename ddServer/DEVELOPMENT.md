@@ -44,7 +44,7 @@ DB_NAME=dd-prod
 
 说明：
 
-- `DB_HOST=127.0.0.1` 适用于「MySQL 与后端部署在同一台服务器」的场景；如果是云 RDS 或不同机器，改成对应地址。
+- `DB_HOST=172.19.247.24`（**非常重要**：在 Docker 部署时，不能填 `127.0.0.1`，必须填服务器的私网 IP，否则容器内连不到宿主机的 MySQL）
 - Prisma 连接串 `DATABASE_URL` 会在运行时由 `DB_*` 自动拼出来，无需你手动写。
 
 ## 3. 验证数据库是否可连接
@@ -147,9 +147,9 @@ cd /srv/ddbook/ddServer
 cat > .env.production << 'EOF'
 PORT=3000
 OPENAI_API_KEY=
-DB_HOST=127.0.0.1
+DB_HOST=172.19.247.24  # 填你服务器的私网 IP（切记不可用 127.0.0.1）
 DB_PORT=3306
-DB_USER=你的prod账号
+DB_USER=dd-prod        # 刚才你创建的账号
 DB_PASSWORD=你的prod密码
 DB_NAME=dd-prod
 EOF

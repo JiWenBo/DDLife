@@ -1,5 +1,8 @@
 FROM node:20-bookworm-slim AS builder
 
+# 安装构建依赖，包括 openssl
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -15,6 +18,9 @@ RUN npm run prisma:generate
 RUN npm run build
 
 FROM node:20-bookworm-slim AS runner
+
+# 运行时也需要 openssl
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
