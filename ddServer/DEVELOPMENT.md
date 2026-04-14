@@ -163,7 +163,7 @@ EOF
 cd /srv/ddbook/ddServer
 git pull
 docker compose -f docker-compose.prod.yml build --no-cache
-docker compose -f docker-compose.prod.yml run --rm ddserver npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml run --rm ddserver npm run db:migrate:deploy:prod
 docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml ps
 ```
@@ -194,7 +194,7 @@ cp .env.example .env.production
 vim .env.production
 
 docker compose -f docker-compose.prod.yml build --no-cache
-docker compose -f docker-compose.prod.yml run --rm ddserver npx prisma migrate deploy
+docker compose -f docker-compose.prod.yml run --rm ddserver npm run db:migrate:deploy:prod
 docker compose -f docker-compose.prod.yml up -d
 curl http://127.0.0.1:3000/health
 ```
