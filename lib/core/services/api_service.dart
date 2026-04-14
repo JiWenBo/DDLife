@@ -27,9 +27,9 @@ class ApiService {
       if (_useAdbReverse) {
         return 'http://127.0.0.1:3000';
       }
-      return 'http://10.0.2.2:3000';
+      return 'http://api.ailumin.cn'; // 建议使用 HTTPS
     }
-    return 'http://127.0.0.1:3000';
+    return 'http://api.ailumin.cn'; // 建议使用 HTTPS
   }
 
   String get authToken => _devToken.trim().isEmpty ? _defaultToken : _devToken.trim();
