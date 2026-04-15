@@ -258,3 +258,6 @@ APP 采用经典的底部导航结构，分为三个核心 Tab，兼顾孩子的
 ## 本地联调  
 adb reverse tcp:3000 tcp:3000
 flutter run --dart-define=USE_ADB_REVERSE=true --dart-define=API_BASE_URL=
+
+flutter build apk --release
+flutter install

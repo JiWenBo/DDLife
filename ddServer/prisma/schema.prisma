@@ -48,6 +48,7 @@ model Book {
   @@map("books")
 }
 
+
 model ReadingRecord {
   id              String    @id @db.VarChar(36)
   userId          String    @map("user_id") @db.VarChar(36)
