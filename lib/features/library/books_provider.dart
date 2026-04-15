@@ -35,8 +35,8 @@ class BooksNotifier extends StateNotifier<AsyncValue<List<Book>>> {
       await _bookRepository.addBook(book);
       // 重新加载以保持排序和一致性
       await loadBooks();
-    } catch (e, stack) {
-      state = AsyncValue.error(e, stack);
+    } catch (e) {
+      rethrow;
     }
   }
 

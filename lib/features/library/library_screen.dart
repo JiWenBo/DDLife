@@ -17,6 +17,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool _isSearching = false;
   final _searchController = TextEditingController();
   String _selectedCategory = '全部';
+  String? _deletingBookId;
 
   // 预定义的分类列表，与录入页面保持一致 + '全部' + '状态'
   final List<String> _filters = [
@@ -311,10 +312,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.grey),
+            enabled: _deletingBookId != book.id,
+            icon: _deletingBookId == book.id
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.more_vert, color: Colors.grey),
             onSelected: (value) {
               if (value == 'delete') {
-                _confirmDelete(context, book);
+                _confirmDelete(book);
               }
             },
             itemBuilder: (context) => [
@@ -335,26 +343,55 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, Book book) {
+  void _confirmDelete(Book book) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('确认删除'),
         content: Text('确定要删除《${book.title}》吗？此操作无法撤销。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _deletingBookId == book.id ? null : () => Navigator.pop(dialogContext),
             child: const Text('取消'),
           ),
           TextButton(
-            onPressed: () {
-              ref.read(booksProvider.notifier).deleteBook(book.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('已删除《${book.title}》')),
-              );
-            },
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            onPressed: _deletingBookId == book.id
+                ? null
+                : () async {
+                    setState(() {
+                      _deletingBookId = book.id;
+                    });
+                    try {
+                      await ref.read(booksProvider.notifier).deleteBook(book.id);
+                      if (dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('已删除《${book.title}》')),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('删除失败：$e')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _deletingBookId = null;
+                        });
+                      }
+                    }
+                  },
+            child: _deletingBookId == book.id
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('删除', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

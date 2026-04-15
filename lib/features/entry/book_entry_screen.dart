@@ -25,6 +25,7 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
   final _tagsController = TextEditingController();
 
   String? _selectedCategory;
+  bool _isSaving = false;
 
   // 更新为更适合 6-12 岁的童趣分类
   final List<String> _categories = [
@@ -61,7 +62,11 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
   }
 
   void _saveBook() async {
+    if (_isSaving) return;
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSaving = true;
+      });
       final isbn = _isbnController.text.trim();
       final title = _titleController.text.trim();
 
@@ -110,28 +115,43 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
         createdAt: DateTime.now(),
       );
 
-      // await bookRepository.addBook(newBook);
-      await ref.read(booksProvider.notifier).addBook(newBook);
+      try {
+        await ref.read(booksProvider.notifier).addBook(newBook);
 
-      if (mounted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ 录入成功！您可以继续录入下一本。'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // 录入成功后不清空表单全部内容，保留分类等，只清空 ISBN、书名、册数等核心内容，方便连续录入
+          _isbnController.clear();
+          _volumeNumberController.clear();
+          _titleController.clear(); // 清空书名，防止连续录入同一本书
+          _seriesNameController.clear();
+          _editionController.clear();
+
+          // 注释掉 pop，不跳回上一页
+          // context.pop();
+        }
+      } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ 录入成功！您可以继续录入下一本。'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text('❌ 录入失败：$e'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
           ),
         );
-        
-        // 录入成功后不清空表单全部内容，保留分类等，只清空 ISBN、书名、册数等核心内容，方便连续录入
-        _isbnController.clear();
-        _volumeNumberController.clear();
-        _titleController.clear(); // 清空书名，防止连续录入同一本书
-        _seriesNameController.clear();
-        _editionController.clear();
-     
-        
-        // 注释掉 pop，不跳回上一页
-        // context.pop();
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+        }
       }
     }
   }
@@ -143,8 +163,14 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
         title: const Text('录入书籍'),
         actions: [
           TextButton(
-            onPressed: _saveBook,
-            child: const Text('保存', style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: _isSaving ? null : _saveBook,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('保存', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -288,7 +314,7 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _saveBook,
+                onPressed: _isSaving ? null : _saveBook,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -296,10 +322,19 @@ class _BookEntryScreenState extends ConsumerState<BookEntryScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  '保存书籍',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        '保存书籍',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
             const SizedBox(height: 40),

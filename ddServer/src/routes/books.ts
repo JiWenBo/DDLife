@@ -7,13 +7,13 @@ import { randomUUID } from 'node:crypto';
 const createBookSchema = z.object({
   isbn: z.string().default(''),
   title: z.string().min(1),
-  author: z.string().optional(),
-  coverUrl: z.string().optional(),
-  category: z.string().optional(),
-  seriesName: z.string().optional(),
-  volumeNumber: z.number().int().optional(),
-  edition: z.string().optional(),
-  audioUrl: z.string().optional(),
+  author: z.string().nullish(),
+  coverUrl: z.string().nullish(),
+  category: z.string().nullish(),
+  seriesName: z.string().nullish(),
+  volumeNumber: z.number().int().nullish(),
+  edition: z.string().nullish(),
+  audioUrl: z.string().nullish(),
   tags: z.array(z.string()).default([]),
 });
 

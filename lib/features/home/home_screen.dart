@@ -16,6 +16,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  bool _isCheckingIn = false;
 
   @override
   void initState() {
@@ -295,68 +296,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   // 记录阅读行为
   void _recordReading(Book book) async {
-    await ref.read(booksProvider.notifier).recordReading(book);
-    
-    if (!mounted) return;
-    
-    // 显示打卡成功动画/提示
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        bool isClosed = false;
-        Future.delayed(const Duration(seconds: 2), () {
-          if (!isClosed && dialogContext.mounted) {
-            isClosed = true;
-            if(Navigator.of(dialogContext).canPop()){
-              Navigator.pop(dialogContext);
-            }
+    if (_isCheckingIn) return;
+    setState(() {
+      _isCheckingIn = true;
+    });
+    try {
+      await ref.read(booksProvider.notifier).recordReading(book);
 
-          }
-        });
-        
-        return PopScope(
-          canPop: true,
-          onPopInvokedWithResult: (didPop, result) {
-            isClosed = true;
-          },
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: MediaQuery.of(dialogContext).size.width * 0.85,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+      if (!mounted) return;
+
+      // 显示打卡成功动画/提示
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          bool isClosed = false;
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!isClosed && dialogContext.mounted) {
+              isClosed = true;
+              if (Navigator.of(dialogContext).canPop()) {
+                Navigator.pop(dialogContext);
+              }
+            }
+          });
+
+          return PopScope(
+            canPop: true,
+            onPopInvokedWithResult: (didPop, result) {
+              isClosed = true;
+            },
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: MediaQuery.of(dialogContext).size.width * 0.85,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF6B9080), size: 64),
+                        const SizedBox(height: 16),
+                        const Text(
+                          '打卡成功！',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('《${book.title}》', style: const TextStyle(fontSize: 16)),
+                        const SizedBox(height: 8),
+                        Text(
+                          '这是你第 ${book.readCount + 1} 次阅读',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.check_circle, color: Color(0xFF6B9080), size: 64),
-                      const SizedBox(height: 16),
-                      const Text(
-                        '打卡成功！',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('《${book.title}》', style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 8),
-                      Text(
-                        '这是你第 ${book.readCount + 1} 次阅读',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打卡失败：$e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingIn = false;
+        });
+      }
+    }
   }
 
   // 书籍未找到提示
@@ -419,10 +436,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6FFF8),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
             const Text(
               "今天想读什么书？",
               style: TextStyle(
@@ -434,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             const SizedBox(height: 60),
             // 呼吸按钮
             GestureDetector(
-              onTap: _handleScan,
+              onTap: _isCheckingIn ? null : _handleScan,
               child: AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
@@ -488,7 +507,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             const SizedBox(height: 40),
             // 手动输入入口
             TextButton.icon(
-              onPressed: _handleManualEntry,
+              onPressed: _isCheckingIn ? null : _handleManualEntry,
               icon: const Icon(Icons.edit, color: Color(0xFF52796F)),
               label: const Text(
                 '找不到条码？手动记录',
@@ -502,8 +521,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             const SizedBox(height: 60),
             // 最近读过的小足迹
             _buildRecentFootprints(ref),
-          ],
-        ),
+              ],
+            ),
+          ),
+          if (_isCheckingIn)
+            Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black26,
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

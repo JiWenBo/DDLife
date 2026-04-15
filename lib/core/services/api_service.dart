@@ -27,9 +27,9 @@ class ApiService {
       if (_useAdbReverse) {
         return 'http://127.0.0.1:3000';
       }
-      return 'http://api.ailumin.cn'; // 建议使用 HTTPS
+      return 'http://api.ailumin.cn';
     }
-    return 'http://api.ailumin.cn'; // 建议使用 HTTPS
+    return 'http://api.ailumin.cn';
   }
 
   String get authToken => _devToken.trim().isEmpty ? _defaultToken : _devToken.trim();
@@ -82,10 +82,10 @@ class ApiService {
     final client = HttpClient();
     try {
       final request = await client.openUrl(method, uri);
-      request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $authToken');
       if (body != null) {
+        request.headers.contentType = ContentType.json;
         request.write(jsonEncode(body));
       }
       final response = await request.close();
